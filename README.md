@@ -7,7 +7,7 @@
 ## 功能特性
 
 - **自动抓取**：GitHub Actions 定时任务，每天北京时间 09:00 自动运行
-- **多来源聚合**：农业农村部、中国农网、第一财经（农业标签）、虎嗅（农业关键词过滤）
+- **多来源聚合**：农业农村部、中国农网、农机360资讯、中国农业机械化信息网
 - **并发爬取**：基于 `asyncio` + `aiohttp`，多来源并发抓取
 - **双路输出**：
   - 每日 Markdown 文章（段落式汇总，存入 `_posts/`，发布为网站 post）
@@ -41,8 +41,8 @@ agri_news/
 | [农业农村部](https://www.moa.gov.cn/xw/zwdt/) | 部动态 | |
 | [农业农村部·部门动态](https://www.moa.gov.cn/xw/bmdt/) | 部门动态 | |
 | [中国农网](https://www.farmer.com.cn/xwpd/nync/) | 农业新闻 | 按文章 URL 模式匹配 |
-| [第一财经](https://www.yicai.com/news/?tag=农业) | 农业标签 | |
-| [虎嗅](https://www.huxiu.com/) | 首页 | 农业关键词过滤 |
+| [农机360资讯](http://news.nongji360.com/list/23) | 农机要闻 | 专注农业机械化、农机补贴 |
+| [中国农业机械化信息网](http://www.amic.agri.cn/secondLevelPage/newscenter/2) | 新闻中心 | 农业农村部农业机械化总站官方信息网 |
 
 ## 配置邮件通知
 

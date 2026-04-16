@@ -4,9 +4,8 @@
 来源：
   - 农业农村部 (moa.gov.cn)        — 部动态 + 农机化频道
   - 中国农网 (farmer.com.cn)       — 农业新闻
-  - 第一财经 (yicai.com)           — 农业标签
-  - 36氪 (36kr.com)               — 农业关键词
-  - 虎嗅 (huxiu.com)              — 农业关键词过滤
+  - 农机360资讯 (nongji360.com)    — 农机要闻
+  - 中国农业机械化信息网 (amic.agri.cn) — 综合要闻 + 地方要闻
 
 输出：
   1. 每日 Markdown 文章（存入 _posts/）— 按来源分组，段落式汇总
@@ -110,16 +109,16 @@ SOURCES = [
         "type": "farmer",
     },
     {
-        "name": "第一财经",
-        "url": "https://www.yicai.com/news/?tag=%E5%86%9C%E4%B8%9A",  # 农业
-        "home": "https://www.yicai.com",
-        "type": "yicai",
+        "name": "农机360资讯",
+        "url": "http://news.nongji360.com/list/23",
+        "home": "http://news.nongji360.com",
+        "type": "nongji360",
     },
     {
-        "name": "虎嗅",
-        "url": "https://www.huxiu.com/",
-        "home": "https://www.huxiu.com",
-        "type": "huxiu",
+        "name": "中国农业机械化信息网",
+        "url": "http://www.amic.agri.cn/secondLevelPage/newscenter/2",
+        "home": "http://www.amic.agri.cn",
+        "type": "amic",
     },
 ]
 
@@ -192,28 +191,17 @@ def parse_farmer(html: str, base_url: str) -> List[dict]:
     return articles
 
 
-def _clean_yicai_title(raw_text: str) -> str:
-    """第一财经链接文本包含 标题+摘要+时间，提取纯标题"""
-    text = re.sub(
-        r'\d+分钟前.*$|\d+小时前.*$|\d+天前.*$|\d{4}-\d{2}-\d{2}.*$',
-        '', raw_text
-    ).strip()
-    title_end = re.search(r'[。！？]', text)
-    if title_end and title_end.start() <= 60:
-        return text[: title_end.start() + 1].strip()
-    return text[:50].strip()
-
-
-def parse_yicai(html: str, base_url: str) -> List[dict]:
-    """解析第一财经标签页"""
+def parse_nongji360(html: str, base_url: str) -> List[dict]:
+    """解析农机360资讯要闻列表 — 链接格式 /html/YYYY/MM/NNNNN.shtml"""
     soup = BeautifulSoup(html, "lxml")
     articles = []
     seen_urls = set()
 
-    for a in soup.select("a[href*='/news/']"):
+    pat = re.compile(r"/html/\d{4}/\d{2}/\d+\.shtml")
+    for a in soup.find_all("a", href=pat):
         href = a.get("href", "")
-        raw_text = a.get_text(strip=True)
-        if not href or not raw_text or len(raw_text) < 8:
+        title = a.get_text(strip=True)
+        if not href or not title or len(title) < 6:
             continue
         if href in seen_urls:
             continue
@@ -221,33 +209,26 @@ def parse_yicai(html: str, base_url: str) -> List[dict]:
         if not href.startswith("http"):
             href = base_url + href
 
-        title = _clean_yicai_title(raw_text)
-        if len(title) < 5:
-            continue
-
-        full = re.sub(
-            r'\d+分钟前.*$|\d+小时前.*$|\d+天前.*$|\d{4}-\d{2}-\d{2}.*$',
-            '', raw_text
-        ).strip()
-        summary = full[len(title):].strip()[:80] if len(full) > len(title) else ""
-
-        articles.append({"title": title, "url": href, "summary": summary})
+        articles.append({"title": title, "url": href, "summary": ""})
         if len(articles) >= MAX_ITEMS_PER_SOURCE:
             break
 
     return articles
 
 
-def parse_huxiu(html: str, base_url: str) -> List[dict]:
-    """解析虎嗅首页，按农业关键词过滤"""
+def parse_amic(html: str, base_url: str) -> List[dict]:
+    """解析中国农业机械化信息网新闻中心 — 链接格式 /secondLevelPage/info/NN/NNNNN"""
     soup = BeautifulSoup(html, "lxml")
     articles = []
     seen_urls = set()
 
-    for a in soup.find_all("a", href=re.compile(r"/article/\d+\.html")):
+    pat = re.compile(r"/secondLevelPage/info/\d+/\d+")
+    for a in soup.find_all("a", href=pat):
         href = a.get("href", "")
         title = a.get_text(strip=True)
-        if not href or not title or len(title) < 8 or len(title) > 150:
+        # 过滤掉标题中含有地区前缀方括号后长度过短的条目
+        title = re.sub(r'^\[.{1,6}\]\s*', '', title).strip()
+        if not href or not title or len(title) < 6:
             continue
         if href in seen_urls:
             continue
@@ -255,20 +236,18 @@ def parse_huxiu(html: str, base_url: str) -> List[dict]:
         if not href.startswith("http"):
             href = base_url + href
 
-        is_agri = any(kw in title for kw in AGRI_KEYWORDS)
-        articles.append({"title": title, "url": href, "summary": "", "is_agri": is_agri})
+        articles.append({"title": title, "url": href, "summary": ""})
+        if len(articles) >= MAX_ITEMS_PER_SOURCE:
+            break
 
-    agri = [a for a in articles if a.get("is_agri")]
-    other = [a for a in articles if not a.get("is_agri")]
-    result = (agri + other)[:MAX_ITEMS_PER_SOURCE]
-    return [{"title": a["title"], "url": a["url"], "summary": ""} for a in result]
+    return articles
 
 
 PARSERS = {
     "moa": parse_moa,
     "farmer": parse_farmer,
-    "yicai": parse_yicai,
-    "huxiu": parse_huxiu,
+    "nongji360": parse_nongji360,
+    "amic": parse_amic,
 }
 
 
@@ -335,7 +314,7 @@ def generate_markdown_body(articles: List[NewsArticle], date_str: str) -> str:
     parts.append(f"## {date_str} 农业动态")
     parts.append("")
     parts.append(
-        f"> 本文汇总来自 **农业农村部、中国农网、第一财经、虎嗅** 的农业资讯，"
+        f"> 本文汇总来自 **农业农村部、中国农网、农机360资讯、中国农业机械化信息网** 的农业资讯，"
         f"聚焦机械化、家庭农场、政策动态，共 {len(articles)} 条。"
     )
     parts.append("")
@@ -365,8 +344,8 @@ def generate_markdown_body(articles: List[NewsArticle], date_str: str) -> str:
     parts.append(
         "*数据来源：[农业农村部](https://www.moa.gov.cn) · "
         "[中国农网](https://www.farmer.com.cn) · "
-        "[第一财经](https://www.yicai.com) · "
-        "[虎嗅](https://www.huxiu.com)*"
+        "[农机360资讯](http://news.nongji360.com) · "
+        "[中国农业机械化信息网](http://www.amic.agri.cn)*"
     )
 
     return "\n".join(parts)
@@ -430,7 +409,7 @@ def build_email_content(articles: List[NewsArticle], date_str: str) -> tuple[str
         html_lines.append("</ul>")
     html_lines.extend([
         "<hr style='border:1px solid #eee;margin-top:30px'>",
-        "<p style='color:#999;font-size:12px'>数据来源：农业农村部 · 中国农网 · 第一财经 · 虎嗅</p>",
+        "<p style='color:#999;font-size:12px'>数据来源：农业农村部 · 中国农网 · 农机360资讯 · 中国农业机械化信息网</p>",
         "</body></html>",
     ])
     html_body = "\n".join(html_lines)
@@ -595,10 +574,6 @@ def main():
     date_str = now.strftime("%Y-%m-%d")
     output_dir = Path(__file__).resolve().parent.parent / "_posts"
     target_file = output_dir / f"{date_str}-{POST_SUFFIX}.md"
-
-    if target_file.exists():
-        logger.info("今日文章已存在: %s，跳过", target_file.name)
-        return 0
 
     logger.info("开始抓取 %s 的农业资讯", date_str)
     crawler = AgriNewsCrawler()
