@@ -1,0 +1,8 @@
+# _data/subsites.yml
+agri_news:
+  displayName: "农业资讯日报"
+  url: "/agri_news"
+  icon: "fa-solid fa-wheat-awn"
+  description: "每日聚合农业农村部、中国农网等权威来源，聚焦机械化、家庭农场、农业政策"
+  version: 1.0
+  last_updated: "2026-04-16"
